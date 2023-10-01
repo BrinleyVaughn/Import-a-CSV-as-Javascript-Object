@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+
+    <input id="fileInput" type="file" accept=".csv" />
+
+
+    <script>
+        const fileInput = document.getElementById("fileInput");
+
+        const splitCSVColumns = (string) => {
+            const array = string.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+            return array.map(value => value.trim().replace(/^"|"$/g, ""));
+        }
+
+        const readCSV = (file) => {
+            const reader = new FileReader();
+            reader.readAsText(file);
+            const promise = new Promise((resolve, reject) => {
+
+                // If the file reader doesn't load, we'll reject the promise
+                reader.onerror = (event) => reject(["Failed to read file"]);
+
+                // If the file reader loads, we'll process the data, but may still reject the promise if other conditions are not met
+                reader.onload = (event) => {
+                    //    Just because the file reader has loaded, doesn't mean everything is fine
+                    //    We can set up other conditions here to reject the promise
+                    //    For example, your csv may require a fixed number of columns
+                    //    If the uploaded CSV has a different number, we can reject the promise
+
+                    // If we encounter errors along the way, push them to this errors array and notify the user later.
+                    let errors = [];
+
+                    // This array will contain our final data
+                    const objArray  = [];
+
+                    const csvText = event.target.result.trim();
+
+                    const rows = csvText.split(/\r\n/g);
+
+                    const columHeaders = splitCSVColumns(rows.shift());
+                    
+                    rows.forEach( (row, rowIndex) => {
+                        const columns = splitCSVColumns(row);
+                        const obj = {};
+
+                        for(let i = 0; i < columHeaders.length; i++) {
+                            if(columns[i] === undefined) {
+                                errors.push(`Column ${i} on row ${rowIndex} is missing.`);
+                            }
+                            // else if(columHeaders="Account Number" && isNaN(columns[i]) ) {
+                            //     errors.push(`Column ${i} on row ${rowIndex} is not a valid number.`);
+                            // }
+                            else {
+                                obj[columHeaders[i]] = columns[i];
+                                
+                            }
+                        }
+                        objArray.push(obj);
+                    })
+
+                    if (errors.length === 0) {
+                        return resolve(objArray );
+                    }
+                    return reject(errors);
+
+                }
+
+            });
+
+            return promise;
+        }
+
+        fileInput.addEventListener("change", (e) => {
+            if(e.target.files.length > 0 && e.target.files[0] && e.target.files[0].type === "text/csv") {
+                readCSV(e.target.files[0])
+                .then( (csvRows) => {
+                    const preview = document.getElementById("preview");
+                    preview.innerHTML=JSON.stringify(csvRows)
+                    .replaceAll("{", "&nbsp;&nbsp;&nbsp;&nbsp;{")
+                    .replaceAll("[", "[<br>")
+                    .replaceAll("]", "<br>]")
+                    .replaceAll("},", "},<br>");
+                })
+                .catch( (errors) => {
+                    console.log(errors);
+                })
+                .finally( () => {
+                    // You can do something here, like hide a loader or enable a disabled button.
+                })
+            }
+        })
+    </script>
+</body>
+
+</html>
